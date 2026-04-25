@@ -1,11 +1,13 @@
 """
 產生情侶共同基金記帳 Excel 範本（.xlsx）
 
-四個工作表：
+五個工作表：
 - 基金清單：定義有哪些基金（提供下拉選單來源）
 - 預算：每個基金每月可累加多筆預算
 - 交易：所有收支紀錄
 - 月度報表：選基金與月份後自動算出當月預算 / 收入 / 支出 / 結餘
+- 快速記帳：填輸入區 → 按巨集按鈕 → 自動 append 到「交易」/「預算」
+            （需另存為 .xlsm 並匯入 scripts/macros/CoupleBudget.bas）
 """
 
 from openpyxl import Workbook
@@ -243,6 +245,98 @@ def make_report(ws):
         ws.cell(row=r, column=4).number_format = MONEY_FMT
 
 
+def make_quickadd(ws):
+    ws.title = "快速記帳"
+    ws["A1"] = "快速記帳（巨集輔助）"
+    ws["A1"].font = TITLE_FONT
+    ws.merge_cells("A1:F1")
+
+    ws["A2"] = (
+        "填好輸入區後按對應按鈕（需先把檔案另存為 .xlsm 並匯入 CoupleBudget.bas，"
+        "詳見下方步驟）。"
+    )
+    ws["A2"].font = Font(italic=True, color="595959")
+    ws.merge_cells("A2:F2")
+
+    INPUT_FILL = PatternFill("solid", fgColor="FFF2CC")
+
+    # 左側：交易輸入
+    ws["A3"] = "新增交易"
+    ws["A3"].font = SECTION_FONT
+    tx_fields = [
+        ("日期", "2026-04-15", DATE_FMT),
+        ("基金", "日常", None),
+        ("類型", "支出", None),
+        ("項目", "", None),
+        ("金額", "", MONEY_FMT),
+        ("記錄人", "A", None),
+        ("備註", "", None),
+    ]
+    for i, (label, default, fmt) in enumerate(tx_fields):
+        r = 4 + i
+        ws.cell(row=r, column=1, value=label).font = Font(bold=True)
+        ws.cell(row=r, column=1).alignment = LEFT
+        ws.cell(row=r, column=1).border = BORDER
+        v = ws.cell(row=r, column=2, value=default)
+        v.fill = INPUT_FILL
+        v.border = BORDER
+        v.alignment = LEFT
+        if fmt:
+            v.number_format = fmt
+
+    ws["A12"] = "→ 在此處附近插入按鈕並指派巨集 AddTransaction"
+    ws["A12"].font = Font(italic=True, color="C00000")
+    ws.merge_cells("A12:B12")
+
+    # 右側：預算輸入
+    ws["D3"] = "新增預算"
+    ws["D3"].font = SECTION_FONT
+    bg_fields = [
+        ("基金", "日常", None),
+        ("月份 (YYYY-MM)", "2026-04", None),
+        ("金額", "", MONEY_FMT),
+        ("記錄人", "A", None),
+        ("備註", "", None),
+    ]
+    for i, (label, default, fmt) in enumerate(bg_fields):
+        r = 4 + i
+        ws.cell(row=r, column=4, value=label).font = Font(bold=True)
+        ws.cell(row=r, column=4).alignment = LEFT
+        ws.cell(row=r, column=4).border = BORDER
+        v = ws.cell(row=r, column=5, value=default)
+        v.fill = INPUT_FILL
+        v.border = BORDER
+        v.alignment = LEFT
+        if fmt:
+            v.number_format = fmt
+
+    ws["D10"] = "→ 在此處附近插入按鈕並指派巨集 AddBudget"
+    ws["D10"].font = Font(italic=True, color="C00000")
+    ws.merge_cells("D10:E10")
+
+    # 巨集設定步驟
+    ws["A14"] = "巨集設定步驟（一次性，約 2 分鐘）"
+    ws["A14"].font = SECTION_FONT
+    steps = [
+        "1. 把這個 .xlsx 「另存新檔」 → 檔案類型選「Excel 啟用巨集的活頁簿 (.xlsm)」。",
+        "2. 按 Alt + F11 開啟 VBA 編輯器。",
+        "3. 上方選單 File → Import File... → 選擇 scripts/macros/CoupleBudget.bas。",
+        "4. 關閉 VBA 編輯器，回到 Excel。",
+        "5. 確認看到「開發人員」索引標籤；沒看到時：檔案 → 選項 → 自訂功能區 → 勾「開發人員」。",
+        "6. 開發人員 → 插入 → 表單控制項「按鈕」→ 在交易輸入區下方拖出一個按鈕，跳出視窗時選 AddTransaction。",
+        "7. 同樣步驟在預算輸入區下方插入按鈕，指派 AddBudget。可右鍵按鈕 → 編輯文字 改成「新增交易」/「新增預算」。",
+        "8. 儲存檔案。之後填好黃色輸入區、按按鈕即可。",
+    ]
+    for i, s in enumerate(steps):
+        r = 15 + i
+        ws.cell(row=r, column=1, value=s)
+        ws.merge_cells(start_row=r, end_row=r, start_column=1, end_column=6)
+
+    widths = [22, 22, 4, 22, 22, 22]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+
 def add_validations(wb):
     fund_range = "=基金清單!$A$5:$A$" + str(4 + N_FUNDS)
 
@@ -266,6 +360,20 @@ def add_validations(wb):
     wb["交易"].add_data_validation(dv_type)
     dv_type.add(f"C5:C{4 + N_TRANSACTIONS}")
 
+    # 快速記帳輸入區的下拉
+    qa = wb["快速記帳"]
+    dv_qa_fund_tx = DataValidation(type="list", formula1=fund_range, allow_blank=False)
+    qa.add_data_validation(dv_qa_fund_tx)
+    dv_qa_fund_tx.add("B5")
+
+    dv_qa_type = DataValidation(type="list", formula1='"收入,支出"', allow_blank=False)
+    qa.add_data_validation(dv_qa_type)
+    dv_qa_type.add("B6")
+
+    dv_qa_fund_bg = DataValidation(type="list", formula1=fund_range, allow_blank=False)
+    qa.add_data_validation(dv_qa_fund_bg)
+    dv_qa_fund_bg.add("E4")
+
 
 def main():
     wb = Workbook()
@@ -273,10 +381,11 @@ def main():
     make_budgets(wb.create_sheet())
     make_transactions(wb.create_sheet())
     make_report(wb.create_sheet())
+    make_quickadd(wb.create_sheet())
     add_validations(wb)
 
-    wb["月度報表"].sheet_view.tabSelected = True
-    wb.active = wb.index(wb["月度報表"])
+    wb["快速記帳"].sheet_view.tabSelected = True
+    wb.active = wb.index(wb["快速記帳"])
 
     wb.save(OUTPUT)
     print(f"saved: {OUTPUT}")
