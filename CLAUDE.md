@@ -40,7 +40,11 @@ npm run lint             # ESLint
 
 ## Supabase 設定
 
-1. 在 Supabase 建立新 Project，取得 URL 與 anon key 寫入 `.env`。
+可選擇雲端或本機 stack。
+
+### 方式 A：Supabase Cloud（推薦給正式使用）
+
+1. 在 https://supabase.com 建立新 Project，取得 URL 與 anon key 寫入 `.env`。
 2. 進 Project → SQL Editor，貼入並執行 `supabase/migrations/0001_init.sql`（建立 `funds` / `budgets` / `transactions` 三張表、RLS policies、加入 Realtime publication）。
 3. 進 Authentication → Users，手動為兩位使用者建立 Email + Password。
 4. 任一使用者於 UI 新增基金後，會自動把自己加入 `funds.member_ids`。**另一位需在 SQL Editor 把自己的 `auth.users.id` 加入該基金的 `member_ids`** 才能看到資料：
@@ -49,6 +53,17 @@ npm run lint             # ESLint
      set member_ids = array_append(member_ids, '<另一位的 UUID>'::uuid)
      where id = '<基金 UUID>';
    ```
+
+### 方式 B：本機 Stack（推薦給開發測試）
+
+需要 Docker 與 [Supabase CLI](https://supabase.com/docs/guides/cli)。`supabase/config.toml` 已經 init 過。
+
+```bash
+supabase start          # 拉 image 並啟動 Postgres / Auth / Studio / Realtime
+supabase db reset       # 套用 supabase/migrations/0001_init.sql 到本機 DB
+```
+
+`supabase start` 的輸出會列出 `API URL`（通常是 `http://127.0.0.1:54321`）與 `anon key`，把這兩個值寫進 `.env` 即可。Supabase Studio 在 `http://127.0.0.1:54323`，可在裡面建立測試使用者。
 
 ## 資料模型
 
