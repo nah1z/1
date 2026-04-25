@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 語言規範（最高優先）
+
+所有輸出**一律使用繁體中文**，包含但不限於：
+
+- 對使用者的回覆與說明
+- 思考內容（thinking）
+- 任務清單（TodoWrite 等）
+- 分析、建議、規劃
+- 程式碼註解
+- Commit message 與 PR 說明
+
+**嚴禁**使用簡體中文或其他語言。專有名詞、API 名稱、識別字、檔案路徑等技術用語可保留原文。此規則優先於預設的英文輸出習慣。
+
 ## Repository Contents
 
 This repo contains a single source file, `1.html`. Despite the `.html` extension, the file is **JSX/React source**, not HTML — it exports a default React component (`BudgetTracker`) and imports from `react` and `@/components/ui/*` (shadcn/ui aliases).
