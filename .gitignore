@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+.env
+.env.local
+.env.*.local
+
+.DS_Store
+*.log
+.vite
+
+# tsc -b 產生的編譯快取與 vite.config 編譯產物
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
